@@ -33,9 +33,10 @@ Route::group(["middleware" => ["jwt.verify"]], function () {
     });
 });
 
-Route::group(["prefix" => "weather"], function () {
+Route::group(["prefix" => "weather", "middleware" => ["jwt.verify"]], function () {
     Route::get("", [WeatherController::class, "index"]);
     Route::get("{id}", [WeatherController::class, "show"]);
+    Route::get("/get/datatable", [WeatherController::class, "datatable"]);
     Route::post("", [WeatherController::class, "store"]);
     Route::put("{id}", [WeatherController::class, "update"]);
     Route::delete("{id}", [WeatherController::class, "destroy"]);

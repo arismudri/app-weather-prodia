@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Home\HomeController;
+use App\Http\Controllers\Weather\WeatherController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,5 +17,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', [HomeController::class, "index"]);
+Route::get('/weather/detail-view/{id}', [WeatherController::class, "detailView"]);
 Route::get('/login-view', [AuthenticationController::class, "loginView"]);
 Route::get('/register-view', [AuthenticationController::class, "registerView"]);

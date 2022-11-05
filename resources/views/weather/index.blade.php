@@ -15,11 +15,11 @@
             <h6 class="m-0 font-weight-bold text-primary">Wethers Data</h6>
         </div>
         <div class="card-body">
-            <button type="button" class="btn btn-primary mb-4" data-toggle="modal" data-target="#exampleModal">
-                Reload
+            <button type="button" class="btn btn-primary mb-4" id="btn-load">
+                Load New Data
             </button>
             <div class="table-responsive">
-                <table class="table table-bordered" id="d-tbl" width="100%" cellspacing="0">
+                <table class="table table-bordered" id="data-tbl" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Latitude</th>
@@ -31,183 +31,83 @@
                             <th>Action</th>
                         </tr>
                     </thead>
-                    <tfoot>
-                        <tr>
-                            <th>Latitude</th>
-                            <th>Longitude</th>
-                            <th>Timezone</th>
-                            <th>Pressure</th>
-                            <th>Humidity</th>
-                            <th>Wind Speed</th>
-                            <th>Action</th>
-                        </tr>
-                    </tfoot>
                     <tbody>
-                        @foreach ($weathers as $row)
-                            <tr>
-                                <td>{{ $row->lat }}</td>
-                                <td>{{ $row->lon }}</td>
-                                <td>{{ $row->timezone }}</td>
-                                <td>{{ $row->pressure }}</td>
-                                <td>{{ $row->humidity }}</td>
-                                <td>{{ $row->wind_speed }}</td>
-                                <td>
-                                    <a href="#" onclick="getDetail('{{ $row->id }}')"
-                                        class="btn btn-info btn-circle btn-sm" data-toggle="modal"
-                                        data-target="#modalDetail">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        @endforeach
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Modal -->
-    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg" id="modal-add" role="document">
-            <div class="modal-content">
-                <form id="transaction-form">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Buat Transaksi Baru</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <div id="dynamic-form">
-                            <button id="add-item" type="button" class="btn btn-md btn-primary">Tambah Barang</button>
-                            <div id="item-wrapper" class="mt-3"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Checkout</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="modal fade" id="modalDetail" tabindex="-1" role="dialog" aria-labelledby="modalDetailLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalDetailLabel">Detail Transaksi</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" id="content-modal-detail">
-
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Checkout</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script>
-        let countListProduct = 0;
-        let listProduct = {!! json_encode($weathers) !!};
-        const FormAdd = $('#transaction-form');
-
-        function removeItem(id) {
-            $(`#${id}`).remove();
-        }
-
-        function getDetail(id) {
-            $.ajax({
-                method: "GET",
-                url: "{{ url('/api/transaction') }}" + "/" + id,
-                processData: false,
-                contentType: false,
-                success: function(response) {
-                    response.data.details.forEach(e => {
-                        $("#content-modal-detail").append(`
-                        <div class="row mt-3">
-                            <div class="col">Harga</div>
-                            <div class="col">${e.harga_satuan}</div>
-                        </div>
-                        <div class="row">
-                            <div class="col">Jumlah</div>
-                            <div class="col">${e.jumlah}</div>
-                        </div>
-                        `);
-                    })
-                    console.log({
-                        response
-                    });
-                },
-            });
-        }
+        let urlLogin = "{{ url('/login-view') }}";
+        let urlData = "{{ url('/api/weather/get/datatable') }}";
+        let urlDetail = "{{ url('/weather/detail-view') }}";
+        let myDataTable = $('#data-tbl');
+        let myBtnLoad = $('#btn-load');
 
         $(document).ready(function() {
 
-            $("#transaction-form").submit(function(e) {
-
-                let csrf = $("meta[name=csrf-token]").attr("content");
-
-                let formData = new FormData(FormAdd[0]);
-
-                $.ajax({
-                    method: "POST",
-                    url: "{{ url('/api/transaction') }}",
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    success: function(response) {
-                        $("#modal-add").modal('hide');
-                        FormAdd[0].reset();
+            myDataTable.DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: urlData,
+                    headers,
+                    error: err => {
+                        window.location.replace(urlLogin);
+                    }
+                },
+                columns: [{
+                        name: 'lat',
+                        data: 'lat',
                     },
-                });
-
-                return false;
+                    {
+                        name: 'lon',
+                        data: 'lon',
+                    },
+                    {
+                        name: 'timezone',
+                        data: 'timezone',
+                    },
+                    {
+                        name: 'pressure',
+                        data: 'pressure',
+                    },
+                    {
+                        name: 'humidity',
+                        data: 'humidity',
+                    },
+                    {
+                        name: 'wind_speed',
+                        data: 'wind_speed',
+                    },
+                    {
+                        name: 'action',
+                        data: 'id',
+                        render: (data, type, row, meta) => {
+                            return `<a href="${urlDetail}/${data}"
+                                        class="btn btn-info btn-circle btn-sm">
+                                        <i class="fas fa-eye"></i>
+                                    </a>`;
+                        }
+                    }
+                ],
+                "initComplete": function(settings, json) {
+                    myBtnLoad.click(() => {
+                        $.ajax({
+                            method: "POST",
+                            url: "{{ url('/api/weather') }}",
+                            headers,
+                            processData: false,
+                            contentType: false,
+                            success: function(response) {
+                                myDataTable.DataTable().ajax.reload()
+                            },
+                        });
+                    });
+                }
             });
-
-            $('#add-item').click(function() {
-
-
-                selectProducts = $(`
-                        <select name="data[${countListProduct}][master_barang_id]" class="form-control" required id="select-weather-${countListProduct}">
-                            <option>Pilih Barang</option>
-                        </select>
-                `);
-
-                listProduct.forEach(weather => {
-                    selectProducts.append(`
-                        <option value="${weather.id}">${weather.nama_barang}</option>
-                    `);
-                });
-
-                $('#item-wrapper').append(`
-                <div id="item-${countListProduct}" class="row m-2">
-                    <div class="col-4" id="col-select-weather-${countListProduct}">
-                    </div>
-                    <div class="col-3">
-                        <input name="data[${countListProduct}][jumlah]" type="number" min="1" required class="form-control" placeholder="Jumlah">
-                    </div>
-                    <div class="col-3">
-                        <input type="text" readonly class="form-control disabled" placeholder="Rp. 0">
-                    </div>
-                    <div class="col">
-                        <a href="#" class="btn btn-danger btn-circle btn-sm" onClick="removeItem('item-${countListProduct}')">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                    </div>                
-                </div>
-                `);
-                selectProducts.appendTo($(`#col-select-weather-${countListProduct}`));
-                // .append(selectProducts);
-                countListProduct++;
-
-            })
         });
     </script>
 @endsection

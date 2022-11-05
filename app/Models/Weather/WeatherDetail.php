@@ -4,12 +4,11 @@ namespace App\Models\Weather;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
-class Weather extends Model
+class WeatherDetail extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     /**
      * The attributes that are mass assignable.
@@ -17,21 +16,11 @@ class Weather extends Model
      * @var array
      */
     protected $fillable = [
-        'lat',
-        'lon',
-        'timezone',
-        'pressure',
-        'humidity',
-        'wind_speed',
+        "weather_id",
+        "weather_detail_id",
+        "main",
+        "description",
     ];
-
-
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'weathers';
 
     /**
      * The "boot" method of the model.
@@ -61,10 +50,10 @@ class Weather extends Model
     }
 
     /**
-     * Get the details for the wether.
+     * Get the weather of the detail.
      */
-    public function details()
+    public function weather()
     {
-        return $this->hasMany(WeatherDetail::class);
+        return $this->belongsTo(Weather::class);
     }
 }

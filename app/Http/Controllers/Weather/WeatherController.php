@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Weather;
 use App\Http\Controllers\Controller;
 use App\Lib\ResponseFormatter;
 use App\Models\Weather\Weather;
+use App\Models\Weather\WeatherDetail;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
+use Yajra\Datatables\Datatables;
 
 class WeatherController extends Controller
 {
@@ -25,10 +28,28 @@ class WeatherController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
+    public function datatable()
+    {
+        try {
+            $data = DataTables::of(
+                Weather::query()
+            )->make(true);
+            return $data;
+        } catch (Exception $e) {
+
+            return $this->response->fail($e->getMessage());
+        }
+    }
+
+    /**
+     * Display a listing of the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
     public function index()
     {
         try {
-            $data = Weather::get();
+            $data = Weather::with("details")->get();
             return $this->response->success("Successfully get all weather", $data);
         } catch (Exception $e) {
 
@@ -45,41 +66,37 @@ class WeatherController extends Controller
     public function store(Request $request)
     {
         try {
-            $data = $request->only(
-                'lat',
-                'lon',
-                'timezone',
-                'pressure',
-                'humidity',
-                'wind_speed'
-            );
 
-            $rule = [
-                "lat" => ["required", "string"],
-                "lon" => ["required", "string"],
-                "timezone" => ["required", "string", "timezone"],
-                "pressure" => ["required", "numeric"],
-                "humidity" => ["required", "numeric"],
-                "wind_speed" => ["required", "numeric"],
+            $response = Http::get(env('WEATHER_MAP_URL', 'https://api.openweathermap.org/data/2.5/weather'), [
+                "lat" => env("WEATHER_MAP_LAT", "-6.229728"),
+                "lon" => env("WEATHER_MAP_LON", "106.6894312"),
+                "appid" => env("WEATHER_MAP_APP_ID", "3392aa3cdcf359c23e1616ac696f9192"),
+            ])->collect();
+
+            $data = [
+                'lat' => $response["coord"]["lat"] ?? 0,
+                'lon' => $response["coord"]["lon"] ?? 0,
+                'timezone' => $response["timezone"] ?? 0,
+                'pressure' => $response["main"]["pressure"] ?? 0,
+                'humidity' => $response["main"]["humidity"] ?? 0,
+                'wind_speed' => $response["wind"]["speed"] ?? 0,
             ];
 
-            $validate = Validator::make($data, $rule);
+            $weather = Weather::create($data);
 
-            if ($validate->fails()) {
-                return $this->response->fail("Validation fail", $validate->messages(), Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
+            $weatherDetails = collect($response["weather"])->map(function ($item) {
+                return new WeatherDetail([
+                    "weather_detail_id" => $item["id"],
+                    "main" => $item["main"],
+                    "description" => $item["description"],
+                ]);
+            });
 
-            $dataWeather = collect($data)->only(
-                'lat',
-                'lon',
-                'timezone',
-                'pressure',
-                'humidity',
-                'wind_speed'
-            );
-            $weather = Weather::create($dataWeather->toArray());
+            $weather->details()->saveMany($weatherDetails);
 
-            return $this->response->success("Successfully create new weather", $weather);
+            $weather->details;
+
+            return $this->response->success("Successfully create new weather", compact("weather", "response"));
         } catch (Exception $e) {
 
             return $this->response->fail($e->getMessage());
@@ -106,7 +123,7 @@ class WeatherController extends Controller
                 return $this->response->fail("Validation fail", $validate->messages(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $weather = Weather::findOrFail($id);
+            $weather = Weather::with("details")->where("id", $id)->firstOrFail();
 
             return $this->response->success("Successfully get weather", $weather);
         } catch (Exception $e) {
@@ -116,54 +133,28 @@ class WeatherController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Display the specified resource.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  string  $weather_id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, string $id)
+    public function detailView(string $id)
     {
+
         try {
-            $data = $request->only(
-                'lat',
-                'lon',
-                'timezone',
-                'pressure',
-                'humidity',
-                'wind_speed'
-            );
-
-            $data["id"] = $id;
-
             $rule = [
                 "id" => ["required", "numeric", Rule::exists("weathers", "id")->whereNull("deleted_at")],
-                "lat" => ["required", "string"],
-                "lon" => ["required", "string"],
-                "timezone" => ["required", "string", "timezone"],
-                "pressure" => ["required", "numeric"],
-                "humidity" => ["required", "numeric"],
-                "wind_speed" => ["required", "numeric"],
             ];
 
-            $validate = Validator::make($data, $rule);
+            $validate = Validator::make(compact("id"), $rule);
 
             if ($validate->fails()) {
                 return $this->response->fail("Validation fail", $validate->messages(), Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            $dataWeather = collect($data)->only(
-                'lat',
-                'lon',
-                'timezone',
-                'pressure',
-                'humidity',
-                'wind_speed'
-            );
-            $weather = Weather::where("id", $id)->update($dataWeather->toArray());
-            $weather = Weather::findOrFail($id);
-
-            return $this->response->success("Successfully update weather", $weather);
+            $weather = Weather::with("details")->where("id", $id)->firstOrFail();
+            $details =  $weather->details;
+            return view("weather.detail", compact("details"));
         } catch (Exception $e) {
 
             return $this->response->fail($e->getMessage());
@@ -190,6 +181,8 @@ class WeatherController extends Controller
             }
 
             $weather = Weather::findOrFail($id);
+
+            $weather->details()->delete();
 
             $weather->delete();
 
